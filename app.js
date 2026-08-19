@@ -33,12 +33,11 @@ Object.keys(initialItems).forEach((type) => {
   if (!Array.isArray(collection[type])) collection[type] = [];
 });
 
-async function saveCollection() {
+async function saveCollection(item, type) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(collection));
     if (supabaseClient) {
-      const items = Object.entries(collection).flatMap(([type, entries]) => entries.map((item) => ({
-        ...(item.id ? { id: item.id } : {}),
+      const payload = {
         type,
         title: item.title,
         creator: item.creator,
@@ -47,14 +46,13 @@ async function saveCollection() {
         color: item.color || '',
         edition: item.edition || '',
         format: item.format || ''
-      })));
-      const { data, error } = await supabaseClient.from('collection_items').upsert(items, { onConflict: 'id' }).select();
+      };
+      const query = item.id
+        ? supabaseClient.from('collection_items').update(payload).eq('id', item.id).select().single()
+        : supabaseClient.from('collection_items').insert(payload).select().single();
+      const { data, error } = await query;
       if (error) throw error;
-      data.forEach((savedItem) => {
-        const savedType = collection[savedItem.type];
-        const matchingItem = savedType.find((item) => item.title === savedItem.title && item.creator === savedItem.creator && !item.id);
-        if (matchingItem) matchingItem.id = savedItem.id;
-      });
+      item.id = data.id;
     }
     return true;
   } catch (error) {
@@ -235,7 +233,7 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
-  if (!(await saveCollection())) return;
+  if (!(await saveCollection(updatedItem, type))) return;
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
