@@ -58,7 +58,9 @@ async function saveCollection() {
     }
     return true;
   } catch (error) {
-    window.alert('This browser could not save the collection. Check storage permissions and try again.');
+    console.error('Could not save the collection.', error);
+    const detail = error?.message || error?.details || 'Unknown error';
+    window.alert(`Could not save the collection: ${detail}`);
     return false;
   }
 }
