@@ -48,8 +48,13 @@ async function saveCollection() {
         edition: item.edition || '',
         format: item.format || ''
       })));
-      const { error } = await supabaseClient.from('collection_items').upsert(items, { onConflict: 'id' });
+      const { data, error } = await supabaseClient.from('collection_items').upsert(items, { onConflict: 'id' }).select();
       if (error) throw error;
+      data.forEach((savedItem) => {
+        const savedType = collection[savedItem.type];
+        const matchingItem = savedType.find((item) => item.title === savedItem.title && item.creator === savedItem.creator && !item.id);
+        if (matchingItem) matchingItem.id = savedItem.id;
+      });
     }
     return true;
   } catch (error) {
