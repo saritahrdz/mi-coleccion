@@ -193,8 +193,13 @@ async function saveCollectionToCode() {
 async function deleteCollectionItem(item, type) {
   try {
     if (supabaseClient && item.id) {
-      const { error } = await supabaseClient.from('collection_items').delete().eq('id', item.id);
+      const { data, error } = await supabaseClient
+        .from('collection_items')
+        .delete()
+        .eq('id', item.id)
+        .select('id');
       if (error) throw error;
+      if (!data.length) throw new Error('No database row was deleted. Run the delete policy in Supabase SQL Editor.');
     }
     collection[type].splice(collection[type].indexOf(item), 1);
     localStorage.setItem(storageKey, JSON.stringify(collection));
