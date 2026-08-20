@@ -11,7 +11,6 @@ const storageKey = 'mi-coleccion';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
   ? window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey)
   : null;
-let editorUnlocked = sessionStorage.getItem('mi-coleccion-editor') === 'unlocked';
 let collection;
 
 try {
@@ -95,14 +94,11 @@ const searchInput = document.querySelector('#searchInput');
 const form = document.querySelector('#addForm');
 
 function requireEditorAccess() {
-  if (editorUnlocked) return true;
   const password = window.prompt('Enter the editor password:');
   if (password !== window.supabaseConfig?.editorPassword) {
     window.alert('That password is not correct.');
     return false;
   }
-  editorUnlocked = true;
-  sessionStorage.setItem('mi-coleccion-editor', 'unlocked');
   return true;
 }
 
