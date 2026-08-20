@@ -11,6 +11,7 @@ const storageKey = 'mi-coleccion';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
   ? window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey)
   : null;
+let editorUnlocked = sessionStorage.getItem('mi-coleccion-editor') === 'unlocked';
 let collection;
 
 try {
@@ -92,6 +93,18 @@ const grid = document.querySelector('#collectionGrid');
 const emptyState = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
 const form = document.querySelector('#addForm');
+
+function requireEditorAccess() {
+  if (editorUnlocked) return true;
+  const password = window.prompt('Enter the editor password:');
+  if (password !== window.supabaseConfig?.editorPassword) {
+    window.alert('That password is not correct.');
+    return false;
+  }
+  editorUnlocked = true;
+  sessionStorage.setItem('mi-coleccion-editor', 'unlocked');
+  return true;
+}
 
 function configureForm(type) {
   const fieldRules = {
@@ -193,6 +206,7 @@ async function deleteCollectionItem(item, type) {
 }
 
 function openAddDialog() {
+  if (!requireEditorAccess()) return;
   editingIndex = null;
   editingType = null;
   document.querySelector('#addForm').reset();
@@ -209,12 +223,14 @@ form.elements.medium.addEventListener('change', (event) => configureForm(event.t
 grid.addEventListener('click', (event) => {
   const deleteButton = event.target.closest('.delete-button');
   if (deleteButton) {
+    if (!requireEditorAccess()) return;
     const item = collection[activeType][Number(deleteButton.dataset.index)];
     if (window.confirm(`Delete "${item.title}" from the collection?`)) deleteCollectionItem(item, activeType);
     return;
   }
   const editButton = event.target.closest('.edit-button');
   if (!editButton) return;
+  if (!requireEditorAccess()) return;
   const item = collection[activeType][Number(editButton.dataset.index)];
   editingIndex = Number(editButton.dataset.index);
   editingType = activeType;
