@@ -271,11 +271,11 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
-  if (!(await saveCollection(updatedItem, type))) return;
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
   editingType = null;
+  if (!(await saveCollection(updatedItem, type))) return;
   setType(type);
 });
 
