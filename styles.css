@@ -69,9 +69,12 @@ h2 { font-size: clamp(30px, 4vw, 48px); }
 .card-detail { margin: 3px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 10px 'DM Mono', monospace; }
 .card-year { color: var(--muted); font: 10px 'DM Mono', monospace; }
 .card-footer { display: flex; align-items: center; justify-content: space-between; }
+.card-actions { display: flex; align-items: center; gap: 8px; }
 .type-label { display: inline-block; margin-top: 11px; color: var(--red); font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
 .edit-button { margin-top: 7px; border: 0; padding: 3px 0 3px 8px; background: transparent; color: var(--muted); cursor: pointer; font: 18px/1 'Space Grotesk', sans-serif; }
 .edit-button:hover { color: var(--red); transform: rotate(-12deg); }
+.delete-button { margin-top: 7px; border: 0; padding: 3px 0 3px 8px; background: transparent; color: var(--muted); cursor: pointer; font: 21px/1 'Space Grotesk', sans-serif; }
+.delete-button:hover { color: #ff7b7b; transform: scale(1.12); }
 .empty-state { padding: 50px 0; border-bottom: 1px solid var(--line); color: var(--muted); font: 12px 'DM Mono', monospace; }
 .site-footer { display: flex; justify-content: space-between; gap: 15px; padding: 20px 5vw 24px; border-top: 1px solid var(--line); color: var(--muted); font: 10px 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
 .footer-status { color: var(--ink); }.footer-status i { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #5a9d65; }
