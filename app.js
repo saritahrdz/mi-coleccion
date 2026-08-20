@@ -140,7 +140,7 @@ function render() {
         <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
       </div>
-      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button></div>
+      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><div class="card-actions"><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
     </article>`).join('');
   emptyState.hidden = items.length > 0;
 }
@@ -177,6 +177,21 @@ async function saveCollectionToCode() {
   }
 }
 
+async function deleteCollectionItem(item, type) {
+  try {
+    if (supabaseClient && item.id) {
+      const { error } = await supabaseClient.from('collection_items').delete().eq('id', item.id);
+      if (error) throw error;
+    }
+    collection[type].splice(collection[type].indexOf(item), 1);
+    localStorage.setItem(storageKey, JSON.stringify(collection));
+    render();
+  } catch (error) {
+    console.error('Could not delete the collection item.', error);
+    window.alert(`Could not delete the collection item: ${error?.message || 'Unknown error'}`);
+  }
+}
+
 function openAddDialog() {
   editingIndex = null;
   editingType = null;
@@ -192,6 +207,12 @@ document.querySelector('#addItemTop').addEventListener('click', openAddDialog);
 document.querySelector('#dialogClose').addEventListener('click', () => document.querySelector('#addDialog').close());
 form.elements.medium.addEventListener('change', (event) => configureForm(event.target.value));
 grid.addEventListener('click', (event) => {
+  const deleteButton = event.target.closest('.delete-button');
+  if (deleteButton) {
+    const item = collection[activeType][Number(deleteButton.dataset.index)];
+    if (window.confirm(`Delete "${item.title}" from the collection?`)) deleteCollectionItem(item, activeType);
+    return;
+  }
   const editButton = event.target.closest('.edit-button');
   if (!editButton) return;
   const item = collection[activeType][Number(editButton.dataset.index)];
