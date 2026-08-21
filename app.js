@@ -43,6 +43,7 @@ async function saveCollection(item, type) {
         creator: item.creator,
         year: item.year,
         image: item.image,
+        link: item.link || '',
         color: item.color || '',
         edition: item.edition || '',
         format: item.format || ''
@@ -129,6 +130,15 @@ function configureForm(type) {
   });
 }
 
+function getExternalLink(value) {
+  try {
+    const url = new URL(value, window.location.href);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch (error) {
+    return '';
+  }
+}
+
 function render() {
   const query = searchInput.value.trim().toLowerCase();
   const items = collection[activeType]
@@ -144,7 +154,7 @@ function render() {
   document.querySelector('#visibleCount').textContent = String(items.length).padStart(2, '0');
   grid.innerHTML = items.map(({ item, index }) => `
     <article class="media-card ${activeType === 'movies' ? 'movie-card' : activeType === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
-      <div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>
+      ${getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info">
         <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
@@ -243,6 +253,7 @@ grid.addEventListener('click', (event) => {
   form.elements.bookEdition.value = item.edition || '';
   form.elements.format.value = item.format || '';
   form.elements.image.value = item.image;
+  form.elements.link.value = item.link || '';
   form.elements.medium.value = activeType;
   configureForm(activeType);
   document.querySelector('#dialogEyebrow').textContent = 'Edit entry';
@@ -260,7 +271,7 @@ form.addEventListener('submit', async (event) => {
   const updatedItem = {
     ...(previousItem?.id ? { id: previousItem.id } : {}),
     title: form.get('title'), creator: form.get('creator'), year: form.get('year') || '—',
-    image: form.get('image'), color: form.get('color') || '',
+    image: form.get('image'), link: form.get('link') || '', color: form.get('color') || '',
     edition: type === 'books' ? form.get('bookEdition') || '' : form.get('edition') || '', format: form.get('format') || ''
   };
   if (editingIndex === null) {
