@@ -58,6 +58,7 @@ h2 { font-size: clamp(30px, 4vw, 48px); }
 .cover-wrap { position: relative; overflow: hidden; aspect-ratio: 1 / 1; background: var(--paper-dark); }
 .cover-wrap::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(24,25,24,.13); pointer-events: none; }
 .cover-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.cover-link { display: block; color: inherit; text-decoration: none; }
 .movie-card .cover-wrap { aspect-ratio: 4 / 5; }
 .movie-card .cover-wrap img { object-fit: contain; }
 .book-card .cover-wrap { aspect-ratio: auto; }
