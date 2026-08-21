@@ -5,8 +5,8 @@ const initialItems = {
   books: []
 };
 
-const labels = { vinyls: 'Side A / Side B', cds: 'Digital, but tactile', movies: 'Lights down / eyes up', books: 'Pages, worn and waiting' };
-const titles = { vinyls: 'The vinyl shelf', cds: 'The CD shelf', movies: 'The film shelf', books: 'The book shelf' };
+const labels = { vinyls: 'Side A / Side B', cds: 'Disc A / Disc B', movies: 'Fade In / Eyes Up', books: 'Bound / Read' };
+const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', books: 'The Book Keep' };
 const storageKey = 'mi-coleccion';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
   ? window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey)
