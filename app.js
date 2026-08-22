@@ -93,6 +93,18 @@ const grid = document.querySelector('#collectionGrid');
 const emptyState = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
 const form = document.querySelector('#addForm');
+const pageUpButton = document.querySelector('#pageUpButton');
+
+function updatePageUpButton() {
+  const isVisible = window.scrollY > 240;
+  pageUpButton.classList.toggle('is-visible', isVisible);
+  pageUpButton.tabIndex = isVisible ? 0 : -1;
+  pageUpButton.setAttribute('aria-hidden', String(!isVisible));
+}
+
+window.addEventListener('scroll', updatePageUpButton, { passive: true });
+pageUpButton.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+updatePageUpButton();
 
 function requireEditorAccess() {
   const password = window.prompt('Enter the editor password:');
