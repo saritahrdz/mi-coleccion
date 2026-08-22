@@ -65,8 +65,8 @@ h2 { font-size: clamp(30px, 4vw, 48px); }
 .cover-link { display: block; color: inherit; text-decoration: none; }
 .movie-card .cover-wrap { aspect-ratio: 4 / 5; }
 .movie-card .cover-wrap img { object-fit: contain; }
-.book-card .cover-wrap { aspect-ratio: auto; }
-.book-card .cover-wrap img { height: auto; object-fit: contain; }
+.book-card .cover-wrap { aspect-ratio: 4 / 5; }
+.book-card .cover-wrap img { object-fit: contain; }
 .media-card:hover img { transform: scale(1.045); }
 .card-info { display: block; min-width: 0; padding: 13px 0 0; border-bottom: 1px solid var(--line); padding-bottom: 13px; }
 .card-info > div { min-width: 0; }
