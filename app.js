@@ -153,25 +153,26 @@ function getExternalLink(value) {
 
 function render() {
   const query = searchInput.value.trim().toLowerCase();
-  const items = collection[activeType]
-    .map((item, index) => ({ item, index }))
+  const items = (query
+    ? Object.entries(collection).flatMap(([type, entries]) => entries.map((item, index) => ({ item, index, type })))
+    : collection[activeType].map((item, index) => ({ item, index, type: activeType })))
     .filter(({ item }) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query));
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.querySelector('span').textContent = String(collection[tab.dataset.type].length).padStart(2, '0');
   });
   const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
   document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
-  document.querySelector('#sectionEyebrow').textContent = labels[activeType];
-  document.querySelector('#sectionTitle').textContent = titles[activeType];
+  document.querySelector('#sectionEyebrow').textContent = query ? 'Across the archive' : labels[activeType];
+  document.querySelector('#sectionTitle').textContent = query ? 'Search results' : titles[activeType];
   document.querySelector('#visibleCount').textContent = String(items.length).padStart(2, '0');
-  grid.innerHTML = items.map(({ item, index }) => `
-    <article class="media-card ${activeType === 'movies' ? 'movie-card' : activeType === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
-      ${activeType !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
+  grid.innerHTML = items.map(({ item, index, type }) => `
+    <article class="media-card ${type === 'movies' ? 'movie-card' : type === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
+      ${type !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info">
-        <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
+        <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
       </div>
-      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><div class="card-actions"><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
+      <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><div class="card-actions"><button class="edit-button" type="button" data-type="${type}" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-type="${type}" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
     </article>`).join('');
   emptyState.hidden = items.length > 0;
 }
@@ -247,16 +248,18 @@ grid.addEventListener('click', (event) => {
   const deleteButton = event.target.closest('.delete-button');
   if (deleteButton) {
     if (!requireEditorAccess()) return;
-    const item = collection[activeType][Number(deleteButton.dataset.index)];
-    if (window.confirm(`Delete "${item.title}" from the collection?`)) deleteCollectionItem(item, activeType);
+    const type = deleteButton.dataset.type;
+    const item = collection[type][Number(deleteButton.dataset.index)];
+    if (window.confirm(`Delete "${item.title}" from the collection?`)) deleteCollectionItem(item, type);
     return;
   }
   const editButton = event.target.closest('.edit-button');
   if (!editButton) return;
   if (!requireEditorAccess()) return;
-  const item = collection[activeType][Number(editButton.dataset.index)];
+  const type = editButton.dataset.type;
+  const item = collection[type][Number(editButton.dataset.index)];
   editingIndex = Number(editButton.dataset.index);
-  editingType = activeType;
+  editingType = type;
   form.elements.title.value = item.title;
   form.elements.creator.value = item.creator;
   form.elements.year.value = item.year === '—' ? '' : item.year;
@@ -266,8 +269,8 @@ grid.addEventListener('click', (event) => {
   form.elements.format.value = item.format || '';
   form.elements.image.value = item.image;
   form.elements.link.value = item.link || '';
-  form.elements.medium.value = activeType;
-  configureForm(activeType);
+  form.elements.medium.value = type;
+  configureForm(type);
   document.querySelector('#dialogEyebrow').textContent = 'Edit entry';
   document.querySelector('#dialogTitle').textContent = 'Update the archive';
   document.querySelector('#submitItem').innerHTML = 'Save changes <span>↗</span>';
