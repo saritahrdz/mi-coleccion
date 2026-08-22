@@ -117,9 +117,9 @@ function requireEditorAccess() {
 
 function configureForm(type) {
   const fieldRules = {
-    vinyls: { title: 'Vinyl title', titlePlaceholder: 'e.g. Love Deluxe', creator: 'Artist', placeholder: 'e.g. Sade', year: 'Year', visible: ['colorField'], required: [] },
-    cds: { title: 'CD title', titlePlaceholder: 'e.g. Koi No Yokan', creator: 'Artist', placeholder: 'e.g. Deftones', year: 'Year', visible: [], required: [] },
-    movies: { title: 'Movie title', titlePlaceholder: 'e.g. The Matrix', creator: 'Director', placeholder: 'e.g. The Wachowskis', year: 'Release year', visible: ['editionField', 'formatField'], required: ['editionField', 'formatField'] },
+    vinyls: { title: 'Vinyl title', titlePlaceholder: 'e.g. Love Deluxe', creator: 'Artist', placeholder: 'e.g. Sade', year: 'Year', visible: ['colorField', 'entryLinkField'], required: [] },
+    cds: { title: 'CD title', titlePlaceholder: 'e.g. Koi No Yokan', creator: 'Artist', placeholder: 'e.g. Deftones', year: 'Year', visible: ['entryLinkField'], required: [] },
+    movies: { title: 'Movie title', titlePlaceholder: 'e.g. The Matrix', creator: 'Director', placeholder: 'e.g. The Wachowskis', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
     books: { title: 'Book title', titlePlaceholder: 'e.g. The Unworthy', creator: 'Author', placeholder: 'e.g. Augustina Bazterrica', year: 'Year', visible: ['bookEditionField'], required: ['bookEditionField'] }
   }[type];
   const titleField = document.querySelector('#titleField');
@@ -131,7 +131,7 @@ function configureForm(type) {
   creatorField.querySelector('input').placeholder = fieldRules.placeholder;
   yearField.firstChild.textContent = fieldRules.year;
 
-  ['colorField', 'editionField', 'bookEditionField', 'formatField'].forEach((fieldId) => {
+  ['colorField', 'editionField', 'bookEditionField', 'formatField', 'entryLinkField'].forEach((fieldId) => {
     const field = document.querySelector(`#${fieldId}`);
     const control = field.querySelector('input, select');
     const visible = fieldRules.visible.includes(fieldId);
@@ -166,7 +166,7 @@ function render() {
   document.querySelector('#visibleCount').textContent = String(items.length).padStart(2, '0');
   grid.innerHTML = items.map(({ item, index }) => `
     <article class="media-card ${activeType === 'movies' ? 'movie-card' : activeType === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
-      ${getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
+      ${activeType !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info">
         <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
