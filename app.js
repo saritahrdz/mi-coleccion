@@ -397,15 +397,19 @@ form.addEventListener('submit', async (event) => {
   };
   if (favoriteOnly) {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-    if (favorites[favoriteType].length < 4) {
-      favorites[favoriteType].push({ type, item: updatedItem });
-      saveFavorites();
+    if (favorites[favoriteType].length >= 4) {
+      window.alert('This Top 4 is already full.');
+      return;
     }
+    collection[type].push(updatedItem);
+    favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
+    saveFavorites();
     event.currentTarget.reset();
     document.querySelector('#addDialog').close();
     favoriteOnly = false;
     document.querySelector('#favoriteOnlyField').hidden = false;
-    render();
+    if (!(await saveCollection(updatedItem, type))) return;
+    setType(type);
     return;
   }
   if (editingIndex === null) {
