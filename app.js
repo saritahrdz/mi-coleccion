@@ -337,6 +337,7 @@ async function deleteCollectionItem(item, type) {
 function openAddDialog() {
   if (!requireEditorAccess()) return;
   dialogMode = 'collection';
+  form.dataset.mode = 'collection';
   document.querySelector('#favoriteOnlyField').hidden = false;
   editingIndex = null;
   editingType = null;
@@ -351,6 +352,7 @@ function openAddDialog() {
 function openAddFavorite(type) {
   if (!requireEditorAccess()) return;
   dialogMode = 'favorite';
+  form.dataset.mode = 'favorite';
   editingIndex = null;
   editingType = null;
   form.reset();
@@ -422,7 +424,8 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const type = form.get('medium');
-  const alsoFavorite = dialogMode === 'collection' && form.get('favoriteOnly') === 'on';
+  const isFavoriteEntry = event.currentTarget.dataset.mode === 'favorite';
+  const alsoFavorite = !isFavoriteEntry && form.get('favoriteOnly') === 'on';
   const previousItem = editingIndex === null ? null : collection[editingType][editingIndex];
   const updatedItem = {
     ...(previousItem?.id ? { id: previousItem.id } : {}),
@@ -430,7 +433,7 @@ form.addEventListener('submit', async (event) => {
     image: form.get('image'), link: form.get('link') || '', color: form.get('color') || '',
     edition: type === 'books' ? form.get('bookEdition') || '' : form.get('edition') || '', format: form.get('format') || ''
   };
-  if (dialogMode === 'favorite') {
+  if (isFavoriteEntry) {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
     if (favorites[favoriteType].length >= 4) {
       window.alert('This Top 4 is already full.');
@@ -451,6 +454,7 @@ form.addEventListener('submit', async (event) => {
     event.currentTarget.reset();
     document.querySelector('#addDialog').close();
     dialogMode = 'collection';
+    event.currentTarget.dataset.mode = 'collection';
     document.querySelector('#favoriteOnlyField').hidden = false;
     render();
     return;
