@@ -60,8 +60,8 @@ async function saveCollection(item, type) {
         color: item.color || '',
         edition: item.edition || '',
         format: item.format || '',
-        is_top4: Boolean(item.is_top4),
-        top4_order: item.is_top4 ? item.top4_order : null
+        is_top4: false,
+        top4_order: null
       };
       const query = item.id
         ? supabaseClient.from('collection_items').update(payload).eq('id', item.id).select().single()
@@ -98,7 +98,6 @@ async function loadRemoteCollection() {
   data.forEach(({ id, type, ...item }) => {
     if (collection[type]) collection[type].push({ id, ...item });
   });
-  const savedFavorites = favorites;
   favorites = { albums: [], movies: [], books: [] };
   const { data: top4Data, error: top4Error } = await supabaseClient
     .from('top4_items')
@@ -106,25 +105,12 @@ async function loadRemoteCollection() {
     .order('top4_order', { ascending: true });
   if (top4Error) {
     console.warn('Top 4 table is not available yet. Run supabase-schema.sql in Supabase.', top4Error);
-    favorites = savedFavorites;
     return;
   }
   top4Data.forEach(({ id, type, top4_order, ...item }) => {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
     favorites[favoriteType].push({ id, type, order: top4_order, item });
   });
-  Object.entries(collection).forEach(([type, items]) => {
-    items.forEach((item) => {
-      if (!item.is_top4) return;
-      const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-      favorites[favoriteType].push({ type, order: item.top4_order ?? favorites[favoriteType].length, item });
-    });
-  });
-  Object.keys(favorites).forEach((favoriteType) => favorites[favoriteType].sort((left, right) => {
-    const leftItem = collection[left.type]?.find((item) => itemKey(item) === left.key);
-    const rightItem = collection[right.type]?.find((item) => itemKey(item) === right.key);
-    return (leftItem?.top4_order ?? Number.MAX_SAFE_INTEGER) - (rightItem?.top4_order ?? Number.MAX_SAFE_INTEGER);
-  }));
 }
 let activeType = 'home';
 let editingIndex = null;
@@ -232,7 +218,7 @@ function render() {
 
   function isFavorite(type, item) {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-    return Boolean(item.is_top4) || favorites[favoriteType].some((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
+    return favorites[favoriteType].some((entry) => entry.type === type && itemKey(entry.item || {}) === itemKey(item));
   }
 
   function saveFavorites() {
@@ -253,7 +239,7 @@ function render() {
       return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType }) => renderCard(item, sourceType, collection[sourceType].indexOf(item))).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
     }).join('');
     const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
-    const selectedItems = Object.values(collection).reduce((total, items) => total + items.filter((item) => item.is_top4).length, 0);
+    const selectedItems = Object.values(favorites).reduce((total, items) => total + items.length, 0);
     document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
     document.querySelector('#sectionEyebrow').textContent = 'A small, personal edit';
     document.querySelector('#sectionTitle').textContent = 'My Top 4';
@@ -283,7 +269,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 searchInput.addEventListener('input', render);
 async function toggleFavorite(type, item) {
   const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && itemKey(entry.item || {}) === itemKey(item));
+  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && itemKey(entry.item) === itemKey(item));
   if (index >= 0) {
     const [favorite] = favorites[favoriteType].splice(index, 1);
     if (supabaseClient && favorite.id) {
@@ -291,7 +277,7 @@ async function toggleFavorite(type, item) {
       if (error) throw error;
     }
   } else if (favorites[favoriteType].length < 4) {
-    const order = Math.max(-1, ...favorites[favoriteType].map((entry) => entry.order)) + 1;
+    const order = Math.max(-1, ...Object.values(favorites).flat().map((entry) => entry.order)) + 1;
     const favorite = { type, order, item: { ...item } };
     if (supabaseClient) {
       const { id, ...favoriteData } = favorite.item;
@@ -392,7 +378,10 @@ grid.addEventListener('click', (event) => {
     const index = Number(favoriteButton.dataset.index);
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
     const item = collection[type][index] || favorites[favoriteType].find((entry) => entry.type === type && entry.item)?.item;
-    if (item) toggleFavorite(type, item);
+    if (item) toggleFavorite(type, item).catch((error) => {
+      console.error('Could not update the Top 4.', error);
+      window.alert(`Could not update the Top 4: ${error?.message || 'Unknown error'}`);
+    });
     return;
   }
   const deleteButton = event.target.closest('.delete-button');
@@ -444,7 +433,7 @@ form.addEventListener('submit', async (event) => {
       window.alert('This Top 4 is already full.');
       return;
     }
-    const order = Math.max(-1, ...favorites[favoriteType].map((entry) => entry.order)) + 1;
+    const order = Math.max(-1, ...Object.values(favorites).flat().map((entry) => entry.order)) + 1;
     const favorite = { type, order, item: updatedItem };
     if (supabaseClient) {
       const { data, error } = await supabaseClient.from('top4_items').insert({ ...updatedItem, type, top4_order: order }).select().single();
