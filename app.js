@@ -196,6 +196,10 @@ function getExternalLink(value) {
 
 function render() {
   const query = searchInput.value.trim().toLowerCase();
+  document.querySelectorAll('.tab').forEach((tab) => {
+    const count = tab.querySelector('span');
+    if (count) count.textContent = String(collection[tab.dataset.type].length).padStart(2, '0');
+  });
     if (activeType === 'home') {
     grid.classList.add('home-grid');
       renderHome(query);
@@ -205,10 +209,6 @@ function render() {
   const items = collection[activeType]
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query));
-  document.querySelectorAll('.tab').forEach((tab) => {
-    const count = tab.querySelector('span');
-    if (count) count.textContent = String(collection[tab.dataset.type].length).padStart(2, '0');
-  });
   const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
   document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
   document.querySelector('#sectionEyebrow').textContent = labels[activeType];
