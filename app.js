@@ -106,13 +106,11 @@ async function loadRemoteCollection() {
       favorites[favoriteType].push({ type, key: itemKey(item) });
     });
   });
-  Object.keys(favorites).forEach((favoriteType) => {
-    favorites[favoriteType].sort((left, right) => {
-      const leftItem = collection[left.type]?.find((item) => itemKey(item) === left.key);
-      const rightItem = collection[right.type]?.find((item) => itemKey(item) === right.key);
-      return (leftItem?.top4_order ?? Number.MAX_SAFE_INTEGER) - (rightItem?.top4_order ?? Number.MAX_SAFE_INTEGER);
-    });
-  });
+  Object.keys(favorites).forEach((favoriteType) => favorites[favoriteType].sort((left, right) => {
+    const leftItem = collection[left.type]?.find((item) => itemKey(item) === left.key);
+    const rightItem = collection[right.type]?.find((item) => itemKey(item) === right.key);
+    return (leftItem?.top4_order ?? Number.MAX_SAFE_INTEGER) - (rightItem?.top4_order ?? Number.MAX_SAFE_INTEGER);
+  }));
 }
 let activeType = 'home';
 let editingIndex = null;
@@ -235,15 +233,14 @@ function render() {
     ];
     const matches = (item) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query);
     grid.innerHTML = sections.map(({ type, label, title }) => {
-      const items = favorites[type].map((entry) => {
-        const sourceType = entry.type;
-        const item = entry.item || collection[sourceType]?.find((candidate) => itemKey(candidate) === entry.key);
-        return item ? { item, sourceType } : null;
-      }).filter(Boolean).filter(({ item }) => matches(item));
+      const sourceTypes = type === 'albums' ? ['vinyls', 'cds'] : [type];
+      const items = sourceTypes.flatMap((sourceType) => collection[sourceType].map((item) => ({ item, sourceType })))
+        .filter(({ item }) => item.is_top4 && matches(item))
+        .sort((left, right) => (left.item.top4_order ?? Number.MAX_SAFE_INTEGER) - (right.item.top4_order ?? Number.MAX_SAFE_INTEGER));
       return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType }) => renderCard(item, sourceType, collection[sourceType].indexOf(item))).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
     }).join('');
     const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
-    const selectedItems = Object.values(favorites).reduce((total, items) => total + items.length, 0);
+    const selectedItems = Object.values(collection).reduce((total, items) => total + items.filter((item) => item.is_top4).length, 0);
     document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
     document.querySelector('#sectionEyebrow').textContent = 'A small, personal edit';
     document.querySelector('#sectionTitle').textContent = 'My Top 4';
@@ -271,7 +268,7 @@ function setType(type) {
 
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => setType(tab.dataset.type)));
 searchInput.addEventListener('input', render);
-function toggleFavorite(type, item) {
+async function toggleFavorite(type, item) {
   const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
   const selected = isFavorite(type, item);
   if (selected) {
@@ -287,8 +284,13 @@ function toggleFavorite(type, item) {
     favorites[favoriteType].push({ type, key: itemKey(item) });
   }
   else return;
+  if (!(await saveCollection(item, type))) {
+    item.is_top4 = selected;
+    if (selected) favorites[favoriteType].push({ type, key: itemKey(item) });
+    else favorites[favoriteType] = favorites[favoriteType].filter((entry) => entry.key !== itemKey(item));
+    return;
+  }
   saveFavorites();
-  saveCollection(item, type);
   render();
 }
 async function saveCollectionToCode() {
@@ -438,7 +440,13 @@ form.addEventListener('submit', async (event) => {
     document.querySelector('#addDialog').close();
     favoriteOnly = false;
     document.querySelector('#favoriteOnlyField').hidden = false;
-    if (!(await saveCollection(updatedItem, type))) return;
+    if (!(await saveCollection(updatedItem, type))) {
+      collection[type].splice(collection[type].indexOf(updatedItem), 1);
+      favorites[favoriteType].pop();
+      saveFavorites();
+      render();
+      return;
+    }
     setType(type);
     return;
   }
@@ -450,14 +458,17 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
-  if (alsoFavorite) {
-    toggleFavorite(type, updatedItem);
-  }
+  if (alsoFavorite) updatedItem.is_top4 = true;
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
   editingType = null;
   if (!(await saveCollection(updatedItem, type))) return;
+  if (alsoFavorite) {
+    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+    favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
+    saveFavorites();
+  }
   setType(type);
 });
 
