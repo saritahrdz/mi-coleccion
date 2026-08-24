@@ -59,7 +59,8 @@ async function saveCollection(item, type) {
         link: item.link || '',
         color: item.color || '',
         edition: item.edition || '',
-        format: item.format || ''
+        format: item.format || '',
+        is_top4: Boolean(item.is_top4)
       };
       const query = item.id
         ? supabaseClient.from('collection_items').update(payload).eq('id', item.id).select().single()
@@ -95,6 +96,14 @@ async function loadRemoteCollection() {
   collection = structuredClone(initialItems);
   data.forEach(({ id, type, ...item }) => {
     if (collection[type]) collection[type].push({ id, ...item });
+  });
+  favorites = { albums: [], movies: [], books: [] };
+  Object.entries(collection).forEach(([type, items]) => {
+    items.forEach((item) => {
+      if (!item.is_top4) return;
+      const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+      favorites[favoriteType].push({ type, key: itemKey(item) });
+    });
   });
 }
 let activeType = 'home';
@@ -203,7 +212,7 @@ function render() {
 
   function isFavorite(type, item) {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-    return favorites[favoriteType].some((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
+    return Boolean(item.is_top4) || favorites[favoriteType].some((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
   }
 
   function saveFavorites() {
@@ -256,11 +265,17 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 searchInput.addEventListener('input', render);
 function toggleFavorite(type, item) {
   const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
-  if (index >= 0) favorites[favoriteType].splice(index, 1);
-  else if (favorites[favoriteType].length < 4) favorites[favoriteType].push({ type, key: itemKey(item) });
+  const selected = isFavorite(type, item);
+  if (selected) {
+    item.is_top4 = false;
+    favorites[favoriteType] = favorites[favoriteType].filter((entry) => !(entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item))));
+  } else if (favorites[favoriteType].length < 4) {
+    item.is_top4 = true;
+    favorites[favoriteType].push({ type, key: itemKey(item) });
+  }
   else return;
   saveFavorites();
+  saveCollection(item, type);
   render();
 }
 async function saveCollectionToCode() {
@@ -402,6 +417,7 @@ form.addEventListener('submit', async (event) => {
       return;
     }
     collection[type].push(updatedItem);
+    updatedItem.is_top4 = true;
     favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
     saveFavorites();
     event.currentTarget.reset();
@@ -420,7 +436,9 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
-  if (alsoFavorite) toggleFavorite(type, updatedItem);
+  if (alsoFavorite) {
+    toggleFavorite(type, updatedItem);
+  }
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
