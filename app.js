@@ -236,7 +236,7 @@ function render() {
       const items = favorites[type].map((entry) => ({ item: entry.item, sourceType: entry.type, entry }))
         .filter(({ item }) => matches(item))
         .sort((left, right) => left.entry.order - right.entry.order);
-      return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType }) => renderCard(item, sourceType, collection[sourceType].indexOf(item))).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
+      return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType, entry }) => renderCard(item, sourceType, collection[sourceType].indexOf(item), entry.id)).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
     }).join('');
     const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
     const selectedItems = Object.values(favorites).reduce((total, items) => total + items.length, 0);
@@ -247,11 +247,11 @@ function render() {
     emptyState.hidden = true;
   }
 
-  function renderCard(item, type, index) {
+  function renderCard(item, type, index, favoriteId = '') {
     return `<article class="media-card ${type === 'movies' ? 'movie-card' : type === 'books' ? 'book-card' : ''}">
       ${type !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info"><div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div><span class="card-year">${item.year}</span></div>
-      <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
+      <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" data-favorite-id="${favoriteId}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
     </article>`;
   }
 
@@ -267,9 +267,11 @@ function setType(type) {
 
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => setType(tab.dataset.type)));
 searchInput.addEventListener('input', render);
-async function toggleFavorite(type, item) {
+async function toggleFavorite(type, item, favoriteId = '') {
   const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && itemKey(entry.item) === itemKey(item));
+  const index = favoriteId
+    ? favorites[favoriteType].findIndex((entry) => String(entry.id) === favoriteId)
+    : favorites[favoriteType].findIndex((entry) => entry.type === type && itemKey(entry.item) === itemKey(item));
   if (index >= 0) {
     const [favorite] = favorites[favoriteType].splice(index, 1);
     if (supabaseClient && favorite.id) {
@@ -377,8 +379,9 @@ grid.addEventListener('click', (event) => {
     const type = favoriteButton.dataset.type;
     const index = Number(favoriteButton.dataset.index);
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-    const item = collection[type][index] || favorites[favoriteType].find((entry) => entry.type === type && entry.item)?.item;
-    if (item) toggleFavorite(type, item).catch((error) => {
+    const favorite = favorites[favoriteType].find((entry) => String(entry.id) === favoriteButton.dataset.favoriteId);
+    const item = favorite?.item || collection[type][index];
+    if (item) toggleFavorite(type, item, favoriteButton.dataset.favoriteId).catch((error) => {
       console.error('Could not update the Top 4.', error);
       window.alert(`Could not update the Top 4: ${error?.message || 'Unknown error'}`);
     });
