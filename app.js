@@ -280,7 +280,7 @@ async function toggleFavorite(type, item) {
     const order = Math.max(-1, ...Object.values(favorites).flat().map((entry) => entry.order)) + 1;
     const favorite = { type, order, item: { ...item } };
     if (supabaseClient) {
-      const { id, ...favoriteData } = favorite.item;
+      const { id, is_top4, top4_order, ...favoriteData } = favorite.item;
       const { data, error } = await supabaseClient.from('top4_items').insert({ ...favoriteData, type, top4_order: order }).select().single();
       if (error) throw error;
       favorite.id = data.id;
