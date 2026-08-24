@@ -115,7 +115,7 @@ async function loadRemoteCollection() {
 let activeType = 'home';
 let editingIndex = null;
 let editingType = null;
-let favoriteOnly = false;
+let dialogMode = 'collection';
 let sourceFileHandle = null;
 
 const grid = document.querySelector('#collectionGrid');
@@ -336,7 +336,7 @@ async function deleteCollectionItem(item, type) {
 
 function openAddDialog() {
   if (!requireEditorAccess()) return;
-  favoriteOnly = false;
+  dialogMode = 'collection';
   document.querySelector('#favoriteOnlyField').hidden = false;
   editingIndex = null;
   editingType = null;
@@ -350,7 +350,7 @@ function openAddDialog() {
 
 function openAddFavorite(type) {
   if (!requireEditorAccess()) return;
-  favoriteOnly = true;
+  dialogMode = 'favorite';
   editingIndex = null;
   editingType = null;
   form.reset();
@@ -422,7 +422,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const type = form.get('medium');
-  const alsoFavorite = form.get('favoriteOnly') === 'on';
+  const alsoFavorite = dialogMode === 'collection' && form.get('favoriteOnly') === 'on';
   const previousItem = editingIndex === null ? null : collection[editingType][editingIndex];
   const updatedItem = {
     ...(previousItem?.id ? { id: previousItem.id } : {}),
@@ -430,7 +430,7 @@ form.addEventListener('submit', async (event) => {
     image: form.get('image'), link: form.get('link') || '', color: form.get('color') || '',
     edition: type === 'books' ? form.get('bookEdition') || '' : form.get('edition') || '', format: form.get('format') || ''
   };
-  if (favoriteOnly) {
+  if (dialogMode === 'favorite') {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
     if (favorites[favoriteType].length >= 4) {
       window.alert('This Top 4 is already full.');
@@ -450,7 +450,7 @@ form.addEventListener('submit', async (event) => {
     saveFavorites();
     event.currentTarget.reset();
     document.querySelector('#addDialog').close();
-    favoriteOnly = false;
+    dialogMode = 'collection';
     document.querySelector('#favoriteOnlyField').hidden = false;
     render();
     return;
