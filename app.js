@@ -98,12 +98,17 @@ async function loadRemoteCollection() {
   data.forEach(({ id, type, ...item }) => {
     if (collection[type]) collection[type].push({ id, ...item });
   });
+  const savedFavorites = favorites;
   favorites = { albums: [], movies: [], books: [] };
   const { data: top4Data, error: top4Error } = await supabaseClient
     .from('top4_items')
     .select('*')
     .order('top4_order', { ascending: true });
-  if (top4Error) throw top4Error;
+  if (top4Error) {
+    console.warn('Top 4 table is not available yet. Run supabase-schema.sql in Supabase.', top4Error);
+    favorites = savedFavorites;
+    return;
+  }
   top4Data.forEach(({ id, type, top4_order, ...item }) => {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
     favorites[favoriteType].push({ id, type, order: top4_order, item });
