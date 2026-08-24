@@ -8,10 +8,23 @@ const initialItems = {
 const labels = { vinyls: 'Side A / Side B', cds: 'Disc A / Disc B', movies: 'Fade In / Eyes Up', books: 'Bound / Read' };
 const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', books: 'The Book Keep' };
 const storageKey = 'mi-coleccion';
+const favoritesStorageKey = 'mi-coleccion-top-4';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
   ? window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey)
   : null;
 let collection;
+let favorites = { albums: [], movies: [], books: [] };
+
+try {
+  const storedFavorites = JSON.parse(localStorage.getItem(favoritesStorageKey)) || {};
+  Object.keys(favorites).forEach((type) => {
+    favorites[type] = Array.isArray(storedFavorites[type]) ? storedFavorites[type].slice(0, 4).map((entry) => typeof entry === 'string'
+      ? { type: entry.split('|')[0], key: entry.split('|').slice(1).join('|') }
+      : entry) : [];
+  });
+} catch (error) {
+  favorites = { albums: [], movies: [], books: [] };
+}
 
 try {
   const sourceCollection = window.collectionData || initialItems;
@@ -84,9 +97,10 @@ async function loadRemoteCollection() {
     if (collection[type]) collection[type].push({ id, ...item });
   });
 }
-let activeType = 'vinyls';
+let activeType = 'home';
 let editingIndex = null;
 let editingType = null;
+let favoriteOnly = false;
 let sourceFileHandle = null;
 
 const grid = document.querySelector('#collectionGrid');
@@ -153,11 +167,18 @@ function getExternalLink(value) {
 
 function render() {
   const query = searchInput.value.trim().toLowerCase();
+    if (activeType === 'home') {
+    grid.classList.add('home-grid');
+      renderHome(query);
+      return;
+    }
+  grid.classList.remove('home-grid');
   const items = collection[activeType]
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query));
   document.querySelectorAll('.tab').forEach((tab) => {
-    tab.querySelector('span').textContent = String(collection[tab.dataset.type].length).padStart(2, '0');
+    const count = tab.querySelector('span');
+    if (count) count.textContent = String(collection[tab.dataset.type].length).padStart(2, '0');
   });
   const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
   document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
@@ -171,10 +192,55 @@ function render() {
         <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
       </div>
-      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><div class="card-actions"><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
+      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><div class="card-actions"><button class="favorite-button ${isFavorite(activeType, item) ? 'is-favorite' : ''}" type="button" data-type="${activeType}" data-index="${index}" aria-label="${isFavorite(activeType, item) ? 'Remove' : 'Add'} ${item.title} ${isFavorite(activeType, item) ? 'from' : 'to'} Top 4" title="${isFavorite(activeType, item) ? 'Remove from Top 4' : 'Add to Top 4'}">${isFavorite(activeType, item) ? '★' : '☆'}</button><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
     </article>`).join('');
   emptyState.hidden = items.length > 0;
 }
+
+  function itemKey(item) {
+    return `${item.title}\u0000${item.creator}`;
+  }
+
+  function isFavorite(type, item) {
+    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+    return favorites[favoriteType].some((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
+  }
+
+  function saveFavorites() {
+    localStorage.setItem(favoritesStorageKey, JSON.stringify(favorites));
+  }
+
+  function renderHome(query) {
+    const sections = [
+      { type: 'albums', label: 'Favorite albums', title: 'Top 4 albums' },
+      { type: 'movies', label: 'Favorite movies', title: 'Top 4 films' },
+      { type: 'books', label: 'Favorite books', title: 'Top 4 reads' }
+    ];
+    const matches = (item) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query);
+    grid.innerHTML = sections.map(({ type, label, title }) => {
+      const items = favorites[type].map((entry) => {
+        const sourceType = entry.type;
+        const item = entry.item || collection[sourceType]?.find((candidate) => itemKey(candidate) === entry.key);
+        return item ? { item, sourceType } : null;
+      }).filter(Boolean).filter(({ item }) => matches(item));
+      return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType }) => renderCard(item, sourceType, collection[sourceType].indexOf(item))).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
+    }).join('');
+    const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
+    const selectedItems = Object.values(favorites).reduce((total, items) => total + items.length, 0);
+    document.querySelector('#archiveCount').textContent = String(totalItems).padStart(2, '0');
+    document.querySelector('#sectionEyebrow').textContent = 'A small, personal edit';
+    document.querySelector('#sectionTitle').textContent = 'My Top 4';
+    document.querySelector('#visibleCount').textContent = String(selectedItems).padStart(2, '0');
+    emptyState.hidden = true;
+  }
+
+  function renderCard(item, type, index) {
+    return `<article class="media-card ${type === 'movies' ? 'movie-card' : type === 'books' ? 'book-card' : ''}">
+      ${type !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
+      <div class="card-info"><div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div><span class="card-year">${item.year}</span></div>
+      <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
+    </article>`;
+  }
 
 function setType(type) {
   activeType = type;
@@ -188,6 +254,15 @@ function setType(type) {
 
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => setType(tab.dataset.type)));
 searchInput.addEventListener('input', render);
+function toggleFavorite(type, item) {
+  const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item)));
+  if (index >= 0) favorites[favoriteType].splice(index, 1);
+  else if (favorites[favoriteType].length < 4) favorites[favoriteType].push({ type, key: itemKey(item) });
+  else return;
+  saveFavorites();
+  render();
+}
 async function saveCollectionToCode() {
   if (!window.showOpenFilePicker) {
     window.alert('This browser cannot write directly to collection-data.js. Use Chrome or Edge.');
@@ -230,6 +305,8 @@ async function deleteCollectionItem(item, type) {
 
 function openAddDialog() {
   if (!requireEditorAccess()) return;
+  favoriteOnly = false;
+  document.querySelector('#favoriteOnlyField').hidden = false;
   editingIndex = null;
   editingType = null;
   document.querySelector('#addForm').reset();
@@ -240,10 +317,41 @@ function openAddDialog() {
   document.querySelector('#addDialog').showModal();
 }
 
+function openAddFavorite(type) {
+  if (!requireEditorAccess()) return;
+  favoriteOnly = true;
+  editingIndex = null;
+  editingType = null;
+  form.reset();
+  const medium = type === 'albums' ? 'vinyls' : type;
+  form.elements.medium.value = medium;
+  configureForm(medium);
+  document.querySelector('#dialogEyebrow').textContent = 'Top 4 selection';
+  document.querySelector('#dialogTitle').textContent = 'Add a favorite';
+  document.querySelector('#submitItem').innerHTML = 'Add favorite <span>↗</span>';
+  document.querySelector('#favoriteOnlyField').hidden = true;
+  document.querySelector('#addDialog').showModal();
+}
+
 document.querySelector('#addItemTop').addEventListener('click', openAddDialog);
 document.querySelector('#dialogClose').addEventListener('click', () => document.querySelector('#addDialog').close());
 form.elements.medium.addEventListener('change', (event) => configureForm(event.target.value));
 grid.addEventListener('click', (event) => {
+  const addFavoriteButton = event.target.closest('.add-favorite-button');
+  if (addFavoriteButton) {
+    openAddFavorite(addFavoriteButton.dataset.favoriteType);
+    return;
+  }
+  const favoriteButton = event.target.closest('.favorite-button');
+  if (favoriteButton) {
+    if (!requireEditorAccess()) return;
+    const type = favoriteButton.dataset.type;
+    const index = Number(favoriteButton.dataset.index);
+    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+    const item = collection[type][index] || favorites[favoriteType].find((entry) => entry.type === type && entry.item)?.item;
+    if (item) toggleFavorite(type, item);
+    return;
+  }
   const deleteButton = event.target.closest('.delete-button');
   if (deleteButton) {
     if (!requireEditorAccess()) return;
@@ -279,6 +387,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const type = form.get('medium');
+  const alsoFavorite = form.get('favoriteOnly') === 'on';
   const previousItem = editingIndex === null ? null : collection[editingType][editingIndex];
   const updatedItem = {
     ...(previousItem?.id ? { id: previousItem.id } : {}),
@@ -286,6 +395,19 @@ form.addEventListener('submit', async (event) => {
     image: form.get('image'), link: form.get('link') || '', color: form.get('color') || '',
     edition: type === 'books' ? form.get('bookEdition') || '' : form.get('edition') || '', format: form.get('format') || ''
   };
+  if (favoriteOnly) {
+    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+    if (favorites[favoriteType].length < 4) {
+      favorites[favoriteType].push({ type, item: updatedItem });
+      saveFavorites();
+    }
+    event.currentTarget.reset();
+    document.querySelector('#addDialog').close();
+    favoriteOnly = false;
+    document.querySelector('#favoriteOnlyField').hidden = false;
+    render();
+    return;
+  }
   if (editingIndex === null) {
     collection[type].push(updatedItem);
   } else if (editingType === type) {
@@ -294,6 +416,7 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
+  if (alsoFavorite) toggleFavorite(type, updatedItem);
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
