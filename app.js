@@ -99,11 +99,20 @@ async function loadRemoteCollection() {
     if (collection[type]) collection[type].push({ id, ...item });
   });
   favorites = { albums: [], movies: [], books: [] };
+  const { data: top4Data, error: top4Error } = await supabaseClient
+    .from('top4_items')
+    .select('*')
+    .order('top4_order', { ascending: true });
+  if (top4Error) throw top4Error;
+  top4Data.forEach(({ id, type, top4_order, ...item }) => {
+    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
+    favorites[favoriteType].push({ id, type, order: top4_order, item });
+  });
   Object.entries(collection).forEach(([type, items]) => {
     items.forEach((item) => {
       if (!item.is_top4) return;
       const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-      favorites[favoriteType].push({ type, key: itemKey(item) });
+      favorites[favoriteType].push({ type, order: item.top4_order ?? favorites[favoriteType].length, item });
     });
   });
   Object.keys(favorites).forEach((favoriteType) => favorites[favoriteType].sort((left, right) => {
@@ -233,10 +242,9 @@ function render() {
     ];
     const matches = (item) => `${item.title} ${item.creator} ${item.year} ${item.edition || ''} ${item.format || ''} ${item.color || ''}`.toLowerCase().includes(query);
     grid.innerHTML = sections.map(({ type, label, title }) => {
-      const sourceTypes = type === 'albums' ? ['vinyls', 'cds'] : [type];
-      const items = sourceTypes.flatMap((sourceType) => collection[sourceType].map((item) => ({ item, sourceType })))
-        .filter(({ item }) => item.is_top4 && matches(item))
-        .sort((left, right) => (left.item.top4_order ?? Number.MAX_SAFE_INTEGER) - (right.item.top4_order ?? Number.MAX_SAFE_INTEGER));
+      const items = favorites[type].map((entry) => ({ item: entry.item, sourceType: entry.type, entry }))
+        .filter(({ item }) => matches(item))
+        .sort((left, right) => left.entry.order - right.entry.order);
       return `<section class="top4-section"><div class="section-heading"><div><p class="eyebrow">${label}</p><h2>${title}</h2></div><button class="add-favorite-button" type="button" data-favorite-type="${type}">+ Add favorite</button></div><div class="collection-grid">${items.map(({ item, sourceType }) => renderCard(item, sourceType, collection[sourceType].indexOf(item))).join('')}</div><p class="empty-state" ${items.length ? 'hidden' : ''}>Choose up to four from the ${type} collection.</p></section>`;
     }).join('');
     const totalItems = Object.values(collection).reduce((total, items) => total + items.length, 0);
@@ -270,24 +278,24 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 searchInput.addEventListener('input', render);
 async function toggleFavorite(type, item) {
   const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-  const selected = isFavorite(type, item);
-  if (selected) {
-    item.is_top4 = false;
-    item.top4_order = null;
-    favorites[favoriteType] = favorites[favoriteType].filter((entry) => !(entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item))));
+  const index = favorites[favoriteType].findIndex((entry) => entry.type === type && itemKey(entry.item || {}) === itemKey(item));
+  if (index >= 0) {
+    const [favorite] = favorites[favoriteType].splice(index, 1);
+    if (supabaseClient && favorite.id) {
+      const { error } = await supabaseClient.from('top4_items').delete().eq('id', favorite.id);
+      if (error) throw error;
+    }
   } else if (favorites[favoriteType].length < 4) {
-    item.is_top4 = true;
-    item.top4_order = Math.max(0, ...favorites[favoriteType].map((entry) => {
-      const favoriteItem = collection[entry.type]?.find((candidate) => itemKey(candidate) === entry.key);
-      return favoriteItem?.top4_order ?? -1;
-    })) + 1;
-    favorites[favoriteType].push({ type, key: itemKey(item) });
-  }
-  else return;
-  if (!(await saveCollection(item, type))) {
-    item.is_top4 = selected;
-    if (selected) favorites[favoriteType].push({ type, key: itemKey(item) });
-    else favorites[favoriteType] = favorites[favoriteType].filter((entry) => entry.key !== itemKey(item));
+    const order = Math.max(-1, ...favorites[favoriteType].map((entry) => entry.order)) + 1;
+    const favorite = { type, order, item: { ...item } };
+    if (supabaseClient) {
+      const { id, ...favoriteData } = favorite.item;
+      const { data, error } = await supabaseClient.from('top4_items').insert({ ...favoriteData, type, top4_order: order }).select().single();
+      if (error) throw error;
+      favorite.id = data.id;
+    }
+    favorites[favoriteType].push(favorite);
+  } else {
     return;
   }
   saveFavorites();
@@ -431,23 +439,23 @@ form.addEventListener('submit', async (event) => {
       window.alert('This Top 4 is already full.');
       return;
     }
-    collection[type].push(updatedItem);
-    updatedItem.is_top4 = true;
-    updatedItem.top4_order = favorites[favoriteType].length;
-    favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
+    const order = Math.max(-1, ...favorites[favoriteType].map((entry) => entry.order)) + 1;
+    const favorite = { type, order, item: updatedItem };
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.from('top4_items').insert({ ...updatedItem, type, top4_order: order }).select().single();
+      if (error) {
+        window.alert(`Could not save the favorite: ${error.message}`);
+        return;
+      }
+      favorite.id = data.id;
+    }
+    favorites[favoriteType].push(favorite);
     saveFavorites();
     event.currentTarget.reset();
     document.querySelector('#addDialog').close();
     favoriteOnly = false;
     document.querySelector('#favoriteOnlyField').hidden = false;
-    if (!(await saveCollection(updatedItem, type))) {
-      collection[type].splice(collection[type].indexOf(updatedItem), 1);
-      favorites[favoriteType].pop();
-      saveFavorites();
-      render();
-      return;
-    }
-    setType(type);
+    render();
     return;
   }
   if (editingIndex === null) {
@@ -458,16 +466,14 @@ form.addEventListener('submit', async (event) => {
     collection[editingType].splice(editingIndex, 1);
     collection[type].push(updatedItem);
   }
-  if (alsoFavorite) updatedItem.is_top4 = true;
   event.currentTarget.reset();
   document.querySelector('#addDialog').close();
   editingIndex = null;
   editingType = null;
   if (!(await saveCollection(updatedItem, type))) return;
   if (alsoFavorite) {
-    const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
-    favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
-    saveFavorites();
+    await toggleFavorite(type, updatedItem);
+    return;
   }
   setType(type);
 });
