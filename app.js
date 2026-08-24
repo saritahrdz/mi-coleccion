@@ -60,7 +60,8 @@ async function saveCollection(item, type) {
         color: item.color || '',
         edition: item.edition || '',
         format: item.format || '',
-        is_top4: Boolean(item.is_top4)
+        is_top4: Boolean(item.is_top4),
+        top4_order: item.is_top4 ? item.top4_order : null
       };
       const query = item.id
         ? supabaseClient.from('collection_items').update(payload).eq('id', item.id).select().single()
@@ -103,6 +104,13 @@ async function loadRemoteCollection() {
       if (!item.is_top4) return;
       const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
       favorites[favoriteType].push({ type, key: itemKey(item) });
+    });
+  });
+  Object.keys(favorites).forEach((favoriteType) => {
+    favorites[favoriteType].sort((left, right) => {
+      const leftItem = collection[left.type]?.find((item) => itemKey(item) === left.key);
+      const rightItem = collection[right.type]?.find((item) => itemKey(item) === right.key);
+      return (leftItem?.top4_order ?? Number.MAX_SAFE_INTEGER) - (rightItem?.top4_order ?? Number.MAX_SAFE_INTEGER);
     });
   });
 }
@@ -268,9 +276,14 @@ function toggleFavorite(type, item) {
   const selected = isFavorite(type, item);
   if (selected) {
     item.is_top4 = false;
+    item.top4_order = null;
     favorites[favoriteType] = favorites[favoriteType].filter((entry) => !(entry.type === type && (entry.key === itemKey(item) || itemKey(entry.item || {}) === itemKey(item))));
   } else if (favorites[favoriteType].length < 4) {
     item.is_top4 = true;
+    item.top4_order = Math.max(0, ...favorites[favoriteType].map((entry) => {
+      const favoriteItem = collection[entry.type]?.find((candidate) => itemKey(candidate) === entry.key);
+      return favoriteItem?.top4_order ?? -1;
+    })) + 1;
     favorites[favoriteType].push({ type, key: itemKey(item) });
   }
   else return;
@@ -418,6 +431,7 @@ form.addEventListener('submit', async (event) => {
     }
     collection[type].push(updatedItem);
     updatedItem.is_top4 = true;
+    updatedItem.top4_order = favorites[favoriteType].length;
     favorites[favoriteType].push({ type, key: itemKey(updatedItem) });
     saveFavorites();
     event.currentTarget.reset();
