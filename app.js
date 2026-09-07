@@ -99,7 +99,7 @@ async function loadRemoteCollection() {
   data.forEach(({ id, type, ...item }) => {
     if (collection[type]) collection[type].push({ id, ...item });
   });
-  favorites = { albums: [], movies: [], books: [] };
+  favorites = { albums: [], movies: [], showsAnime: [], books: [] };
   const { data: top4Data, error: top4Error } = await supabaseClient
     .from('top4_items')
     .select('*')
@@ -253,7 +253,7 @@ function render() {
     return `<article class="media-card ${type === 'movies' || type === 'showsAnime' ? 'movie-card' : type === 'books' ? 'book-card' : ''}">
       ${type !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info"><div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'showsAnime' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div><span class="card-year">${item.year}</span></div>
-      <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" data-favorite-id="${favoriteId}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
+      <div class="card-footer"><span class="type-label">${type === 'showsAnime' ? 'shows & anime' : type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" data-favorite-id="${favoriteId}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
     </article>`;
   }
 
