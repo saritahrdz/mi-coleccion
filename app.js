@@ -7,7 +7,7 @@ const initialItems = {
 };
 
 const labels = { vinyls: 'Side A / Side B', cds: 'Disc A / Disc B', movies: 'Fade In / Eyes Up', showsAnime: 'Opening / Closing', books: 'Bound / Read' };
-const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', showsAnime: 'The Shows & Anime Shelf', books: 'The Book Keep' };
+const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', showsAnime: 'The Binge Bank', books: 'The Book Keep' };
 const storageKey = 'mi-coleccion';
 const favoritesStorageKey = 'mi-coleccion-top-4';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
@@ -150,7 +150,7 @@ function configureForm(type) {
     vinyls: { title: 'Vinyl title', titlePlaceholder: 'e.g. Love Deluxe', creator: 'Artist', placeholder: 'e.g. Sade', year: 'Year', visible: ['colorField', 'entryLinkField'], required: [] },
     cds: { title: 'CD title', titlePlaceholder: 'e.g. Koi No Yokan', creator: 'Artist', placeholder: 'e.g. Deftones', year: 'Year', visible: ['entryLinkField'], required: [] },
     movies: { title: 'Movie title', titlePlaceholder: 'e.g. The Matrix', creator: 'Director', placeholder: 'e.g. The Wachowskis', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
-    showsAnime: { title: 'Title', titlePlaceholder: 'e.g. Cowboy Bebop', creator: 'Director', placeholder: 'e.g. Shinichiro Watanabe', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
+    showsAnime: { title: 'Title', titlePlaceholder: 'NANA', creator: 'Director', placeholder: 'Ai Yazawa', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
     books: { title: 'Book title', titlePlaceholder: 'e.g. The Unworthy', creator: 'Author', placeholder: 'e.g. Augustina Bazterrica', year: 'Year', visible: ['bookEditionField'], required: ['bookEditionField'] }
   }[type];
   const titleField = document.querySelector('#titleField');
@@ -162,7 +162,7 @@ function configureForm(type) {
   creatorField.querySelector('input').placeholder = fieldRules.placeholder;
   yearField.firstChild.textContent = fieldRules.year;
 
-  ['colorField', 'editionField', 'bookEditionField', 'formatField', 'entryLinkField'].forEach((fieldId) => {
+  ['colorField', 'bookEditionField', 'entryLinkField'].forEach((fieldId) => {
     const field = document.querySelector(`#${fieldId}`);
     const control = field.querySelector('input, select');
     const visible = fieldRules.visible.includes(fieldId);
@@ -171,6 +171,38 @@ function configureForm(type) {
     control.required = fieldRules.required.includes(fieldId);
     if (!visible) control.value = '';
   });
+  const isShowsAnime = type === 'showsAnime';
+  const hasPhysicalEdition = type === 'movies' || isShowsAnime;
+  document.querySelector('#editionField').hidden = !hasPhysicalEdition;
+  document.querySelector('#formatField').hidden = !hasPhysicalEdition;
+  const editionSelect = document.querySelector('#editionSelect');
+  const editionInput = document.querySelector('#editionInput');
+  const formatSelect = document.querySelector('#formatSelect');
+  const formatInput = document.querySelector('#formatInput');
+  editionSelect.hidden = isShowsAnime;
+  editionSelect.disabled = !hasPhysicalEdition || isShowsAnime;
+  editionSelect.required = !isShowsAnime && type === 'movies';
+  editionInput.hidden = !isShowsAnime;
+  editionInput.disabled = !isShowsAnime;
+  editionInput.required = isShowsAnime;
+  formatSelect.hidden = isShowsAnime;
+  formatSelect.disabled = !hasPhysicalEdition || isShowsAnime;
+  formatSelect.required = !isShowsAnime && type === 'movies';
+  formatInput.hidden = !isShowsAnime;
+  formatInput.disabled = !isShowsAnime;
+  formatInput.required = isShowsAnime;
+  if (!isShowsAnime) {
+    editionInput.value = '';
+    formatInput.value = '';
+    if (type !== 'movies') {
+      editionSelect.value = '';
+      formatSelect.value = '';
+    }
+  } else {
+    editionInput.placeholder = 'Steelbook';
+    formatInput.placeholder = 'Blu ray';
+  }
+  document.querySelector('#entryLinkField input').placeholder = isShowsAnime ? 'https://www.imdb.com/title/...' : 'https://spotify.com/...';
 }
 
 function getExternalLink(value) {
@@ -408,9 +440,11 @@ grid.addEventListener('click', (event) => {
   form.elements.creator.value = item.creator;
   form.elements.year.value = item.year === '—' ? '' : item.year;
   form.elements.color.value = item.color || '';
-  form.elements.edition.value = item.edition || '';
+  document.querySelector('#editionSelect').value = item.edition || '';
+  document.querySelector('#editionInput').value = item.edition || '';
   form.elements.bookEdition.value = item.edition || '';
-  form.elements.format.value = item.format || '';
+  document.querySelector('#formatSelect').value = item.format || '';
+  document.querySelector('#formatInput').value = item.format || '';
   form.elements.image.value = item.image;
   form.elements.link.value = item.link || '';
   form.elements.medium.value = activeType;
@@ -488,3 +522,4 @@ loadRemoteCollection()
     window.alert('The shared collection could not be loaded. Showing local data instead.');
     render();
   });
+
