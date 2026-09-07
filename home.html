@@ -39,6 +39,7 @@
           <button class="tab" role="tab" aria-selected="false" aria-controls="collectionGrid" data-type="vinyls">Vinyls <span>06</span></button>
         <button class="tab" role="tab" aria-selected="false" aria-controls="collectionGrid" data-type="cds">CDs <span>04</span></button>
         <button class="tab" role="tab" aria-selected="false" aria-controls="collectionGrid" data-type="movies">Movies <span>05</span></button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="collectionGrid" data-type="showsAnime">Shows &amp; Anime <span>00</span></button>
         <button class="tab" role="tab" aria-selected="false" aria-controls="collectionGrid" data-type="books">Books <span>00</span></button>
       </div>
       <label class="search-field">
@@ -75,13 +76,13 @@
       <button class="dialog-close" id="dialogClose" type="button" aria-label="Close dialog">×</button>
       <p class="eyebrow" id="dialogEyebrow">New arrival</p>
       <h2 id="dialogTitle">Add to the archive</h2>
-      <label>Medium<select name="medium"><option value="vinyls">Vinyl</option><option value="cds">CD</option><option value="movies">Movie</option><option value="books">Book</option></select></label>
+      <label>Medium<select name="medium"><option value="vinyls">Vinyl</option><option value="cds">CD</option><option value="movies">Movie</option><option value="showsAnime">Shows &amp; Anime</option><option value="books">Book</option></select></label>
       <label id="titleField">Title<input name="title" required placeholder="e.g. Love Deluxe"></label>
       <label id="creatorField">Artist<input name="creator" required placeholder="e.g. Sade"></label>
       <label id="colorField">Color<input name="color" placeholder="e.g. Black"></label>
-      <label id="editionField">Edition<select name="edition" required><option value="" disabled selected>Select edition</option><option>Criterion Collection</option><option>Steelbook</option><option>MUBI</option><option>DVD</option><option>Blu-Ray</option></select></label>
+      <label id="editionField">Edition<input name="edition" placeholder="e.g. Collector's edition"></label>
       <label id="bookEditionField">Edition<input name="bookEdition" placeholder="e.g. First edition"></label>
-      <label id="formatField">Type<select name="format" required><option value="" disabled selected>Select type</option><option>Blu-Ray</option><option>DVD</option></select></label>
+      <label id="formatField">Type<input name="format" placeholder="e.g. Series, OVA, or film"></label>
       <label id="yearField">Release year<input name="year" type="number" min="1888" max="2026" placeholder="2001"></label>
       <label>Image link<input name="image" type="url" required placeholder="https://..." inputmode="url"></label>
       <label id="entryLinkField">Entry link<input name="link" type="url" placeholder="https://spotify.com/..." inputmode="url"></label>
@@ -92,6 +93,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="collection-data.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
