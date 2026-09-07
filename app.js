@@ -2,18 +2,19 @@ const initialItems = {
   vinyls: [],
   cds: [],
   movies: [],
+  showsAnime: [],
   books: []
 };
 
-const labels = { vinyls: 'Side A / Side B', cds: 'Disc A / Disc B', movies: 'Fade In / Eyes Up', books: 'Bound / Read' };
-const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', books: 'The Book Keep' };
+const labels = { vinyls: 'Side A / Side B', cds: 'Disc A / Disc B', movies: 'Fade In / Eyes Up', showsAnime: 'Opening / Closing', books: 'Bound / Read' };
+const titles = { vinyls: 'The Vinyl Vault', cds: 'The CD Reserve', movies: 'The Film Treasury', showsAnime: 'The Shows & Anime Shelf', books: 'The Book Keep' };
 const storageKey = 'mi-coleccion';
 const favoritesStorageKey = 'mi-coleccion-top-4';
 const supabaseClient = window.supabaseConfig?.url && window.supabaseConfig?.anonKey
   ? window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey)
   : null;
 let collection;
-let favorites = { albums: [], movies: [], books: [] };
+let favorites = { albums: [], movies: [], showsAnime: [], books: [] };
 
 try {
   const storedFavorites = JSON.parse(localStorage.getItem(favoritesStorageKey)) || {};
@@ -23,7 +24,7 @@ try {
       : entry) : [];
   });
 } catch (error) {
-  favorites = { albums: [], movies: [], books: [] };
+  favorites = { albums: [], movies: [], showsAnime: [], books: [] };
 }
 
 try {
@@ -149,6 +150,7 @@ function configureForm(type) {
     vinyls: { title: 'Vinyl title', titlePlaceholder: 'e.g. Love Deluxe', creator: 'Artist', placeholder: 'e.g. Sade', year: 'Year', visible: ['colorField', 'entryLinkField'], required: [] },
     cds: { title: 'CD title', titlePlaceholder: 'e.g. Koi No Yokan', creator: 'Artist', placeholder: 'e.g. Deftones', year: 'Year', visible: ['entryLinkField'], required: [] },
     movies: { title: 'Movie title', titlePlaceholder: 'e.g. The Matrix', creator: 'Director', placeholder: 'e.g. The Wachowskis', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
+    showsAnime: { title: 'Title', titlePlaceholder: 'e.g. Cowboy Bebop', creator: 'Director', placeholder: 'e.g. Shinichiro Watanabe', year: 'Release year', visible: ['editionField', 'formatField', 'entryLinkField'], required: ['editionField', 'formatField'] },
     books: { title: 'Book title', titlePlaceholder: 'e.g. The Unworthy', creator: 'Author', placeholder: 'e.g. Augustina Bazterrica', year: 'Year', visible: ['bookEditionField'], required: ['bookEditionField'] }
   }[type];
   const titleField = document.querySelector('#titleField');
@@ -201,13 +203,13 @@ function render() {
   document.querySelector('#sectionTitle').textContent = titles[activeType];
   document.querySelector('#visibleCount').textContent = String(items.length).padStart(2, '0');
   grid.innerHTML = items.map(({ item, index }) => `
-    <article class="media-card ${activeType === 'movies' ? 'movie-card' : activeType === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
+    <article class="media-card ${activeType === 'movies' || activeType === 'showsAnime' ? 'movie-card' : activeType === 'books' ? 'book-card' : ''}" style="animation-delay: ${index * 55}ms">
       ${activeType !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
       <div class="card-info">
-        <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
+        <div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${activeType === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(activeType === 'movies' || activeType === 'showsAnime' || activeType === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div>
         <span class="card-year">${item.year}</span>
       </div>
-      <div class="card-footer"><span class="type-label">${activeType.slice(0, -1)}</span><div class="card-actions"><button class="favorite-button ${isFavorite(activeType, item) ? 'is-favorite' : ''}" type="button" data-type="${activeType}" data-index="${index}" aria-label="${isFavorite(activeType, item) ? 'Remove' : 'Add'} ${item.title} ${isFavorite(activeType, item) ? 'from' : 'to'} Top 4" title="${isFavorite(activeType, item) ? 'Remove from Top 4' : 'Add to Top 4'}">${isFavorite(activeType, item) ? '★' : '☆'}</button><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
+      <div class="card-footer"><span class="type-label">${activeType === 'showsAnime' ? 'shows & anime' : activeType.slice(0, -1)}</span><div class="card-actions"><button class="favorite-button ${isFavorite(activeType, item) ? 'is-favorite' : ''}" type="button" data-type="${activeType}" data-index="${index}" aria-label="${isFavorite(activeType, item) ? 'Remove' : 'Add'} ${item.title} ${isFavorite(activeType, item) ? 'from' : 'to'} Top 4" title="${isFavorite(activeType, item) ? 'Remove from Top 4' : 'Add to Top 4'}">${isFavorite(activeType, item) ? '★' : '☆'}</button><button class="edit-button" type="button" data-index="${index}" aria-label="Edit ${item.title}" title="Edit item">✎</button><button class="delete-button" type="button" data-index="${index}" aria-label="Delete ${item.title}" title="Delete item">×</button></div></div>
     </article>`).join('');
   emptyState.hidden = items.length > 0;
 }
@@ -248,9 +250,9 @@ function render() {
   }
 
   function renderCard(item, type, index, favoriteId = '') {
-    return `<article class="media-card ${type === 'movies' ? 'movie-card' : type === 'books' ? 'book-card' : ''}">
+    return `<article class="media-card ${type === 'movies' || type === 'showsAnime' ? 'movie-card' : type === 'books' ? 'book-card' : ''}">
       ${type !== 'books' && getExternalLink(item.link) ? `<a class="cover-link" href="${getExternalLink(item.link)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${item.title} link"><div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div></a>` : `<div class="cover-wrap"><img src="${item.image}" alt="${item.title} cover art" loading="lazy"></div>`}
-      <div class="card-info"><div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div><span class="card-year">${item.year}</span></div>
+      <div class="card-info"><div><h3 class="card-title">${item.title}</h3><p class="card-creator">${item.creator}</p>${type === 'vinyls' && item.color ? `<p class="card-detail">${item.color}</p>` : ''}${(type === 'movies' || type === 'showsAnime' || type === 'books') && item.edition ? `<p class="card-detail">${item.edition}</p>` : ''}</div><span class="card-year">${item.year}</span></div>
       <div class="card-footer"><span class="type-label">${type.slice(0, -1)}</span><button class="favorite-button is-favorite" type="button" data-type="${type}" data-index="${index}" data-favorite-id="${favoriteId}" aria-label="Remove ${item.title} from Top 4" title="Remove from Top 4">★</button></div>
     </article>`;
   }
