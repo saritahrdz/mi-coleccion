@@ -467,7 +467,7 @@ form.addEventListener('submit', async (event) => {
     ...(previousItem?.id ? { id: previousItem.id } : {}),
     title: form.get('title'), creator: form.get('creator'), year: form.get('year') || '—',
     image: form.get('image'), link: form.get('link') || '', color: form.get('color') || '',
-    edition: type === 'books' ? form.get('bookEdition') || '' : form.get('edition') || '', format: form.get('format') || ''
+    edition: type === 'books' ? form.get('bookEdition') || '' : type === 'movies' ? form.get('movieEdition') || '' : form.get('edition') || '', format: type === 'movies' ? form.get('movieFormat') || '' : form.get('format') || ''
   };
   if (isFavoriteEntry) {
     const favoriteType = type === 'vinyls' || type === 'cds' ? 'albums' : type;
@@ -522,4 +522,3 @@ loadRemoteCollection()
     window.alert('The shared collection could not be loaded. Showing local data instead.');
     render();
   });
-
