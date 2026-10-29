@@ -13,8 +13,8 @@ jobs:
     steps:
       - name: Ping Supabase database
         env:
-          SUPABASE_URL: ${{ https://wznyomhhktdderavvjpn.supabase.co/rest/v1/ }}
-          SUPABASE_KEY: ${{ sb_publishable_qtxSiuAYtl4IH3AGCmfJdQ_Tu44j4Eo }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           response=$(curl --silent --show-error \
             --output /tmp/response.txt \
