@@ -11,23 +11,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ping Supabase database
+      - name: Check Supabase configuration
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          response=$(curl --silent --show-error \
-            --output /tmp/response.txt \
-            --write-out "%{http_code}" \
-            --get "$SUPABASE_URL/rest/v1/top4_items" \
-            --data-urlencode "select=*" \
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::SUPABASE_URL secret is missing."
+            exit 1
+          fi
+
+          if [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::SUPABASE_KEY secret is missing."
+            exit 1
+          fi
+
+          echo "Supabase URL and API key are configured."
+
+      - name: Ping top4_items table
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          URL="${SUPABASE_URL%/}/rest/v1/top4_items"
+
+          echo "Sending test request to top4_items..."
+
+          STATUS=$(curl -sS \
+            -o response.txt \
+            -w "%{http_code}" \
+            --get "$URL" \
+            --data-urlencode "select=id" \
             --data-urlencode "limit=1" \
-            --header "apikey: $SUPABASE_KEY" \
-            --header "Authorization: Bearer $SUPABASE_KEY")
+            -H "apikey: $SUPABASE_KEY") || {
+              echo "::error::Could not connect to Supabase."
+              exit 1
+            }
 
-          echo "Supabase HTTP status: $response"
+          echo "HTTP status: $STATUS"
 
-          if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
-            cat /tmp/response.txt
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Success! Supabase responded to the request."
+          else
+            echo "::error::Supabase returned HTTP $STATUS."
+            echo "Response details:"
+            cat response.txt
             exit 1
           fi
